@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrivacyCheck — Understand any privacy policy in seconds</title>
+<meta name="description" content="PrivacyCheck is a Chrome extension that reads privacy policies for you and scores them, so you know what you're agreeing to before you accept.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #FFFFFF;
+    --panel: #F6F4F0;
+    --ink: #1F1B16;
+    --ink-soft: #5B5148;
+    --orange: #D96A1F;
+    --orange-dark: #A6521A;
+    --line: #E2DDD3;
+    --font: 'Inter', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+    --max: 900px;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} *{transition:none !important; animation:none !important;} }
+
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    line-height: 1.65;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  a{ color: var(--orange-dark); }
+  img{ max-width:100%; display:block; }
+
+  .wrap{ max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+
+  /* Nav */
+  nav{
+    border-bottom: 1px solid var(--line);
+    position: sticky; top:0; background: rgba(255,255,255,0.94);
+    z-index: 20;
+  }
+  nav .wrap{ display:flex; align-items:center; justify-content:space-between; height:60px; }
+  .brand{ font-weight:800; font-size:1.02rem; text-decoration:none; color:var(--ink); }
+  .navlinks{ display:flex; gap:22px; list-style:none; }
+  .navlinks a{ text-decoration:none; font-size:0.9rem; font-weight:600; color:var(--ink-soft); }
+  .navlinks a:hover, .navlinks a:focus-visible{ color:var(--orange-dark); }
+  @media (max-width: 640px){ .navlinks{ display:none; } }
+
+  /* Intro */
+  .intro{ padding: 56px 0 40px; border-bottom: 1px solid var(--line); }
+  .kicker{
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--orange-dark);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 14px;
+  }
+  h1{
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    font-weight: 800;
+    line-height: 1.2;
+    max-width: 18ch;
+    margin-bottom: 16px;
+  }
+  .intro p{
+    font-size: 1.06rem;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin-bottom: 26px;
+  }
+  .btn-row{ display:flex; gap:12px; flex-wrap:wrap; }
+  .btn{
+    display:inline-block;
+    font-family: var(--font);
+    font-weight: 700;
+    font-size: 0.92rem;
+    padding: 11px 20px;
+    border-radius: 6px;
+    text-decoration:none;
+    border: 1px solid var(--ink);
+    cursor: pointer;
+  }
+  .btn-solid{ background: var(--ink); color:#fff; }
+  .btn-solid:hover, .btn-solid:focus-visible{ background: var(--orange-dark); border-color: var(--orange-dark); }
+  .btn-line{ background: transparent; color: var(--ink); }
+  .btn-line:hover, .btn-line:focus-visible{ border-color: var(--orange-dark); color: var(--orange-dark); }
+  .btn:focus-visible{ outline: 2px solid var(--orange-dark); outline-offset: 2px; }
+
+  /* Browser window screenshot */
+  .browser-shot{
+    margin: 0 auto;
+    max-width: 560px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .browser-bar{
+    background: #EFECE6;
+    padding: 9px 12px;
+    display:flex; align-items:center; gap: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .browser-dots{ display:flex; gap:6px; }
+  .browser-dots span{ width:9px; height:9px; border-radius:50%; background:#D8D2C6; display:block; }
+  .browser-url{
+    flex:1;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+  }
+  .browser-body{ padding: 22px; background: #fff; }
+  .ext-header{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:0.92rem; margin-bottom:16px; }
+  .ext-header .sq{ width:16px; height:16px; border-radius:4px; background: var(--orange); display:inline-block; }
+
+  .score-row{
+    display:flex; align-items:center; gap:16px;
+    padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    margin-bottom: 18px;
+  }
+  .score-circle{
+    width:56px; height:56px; border-radius:50%;
+    background: conic-gradient(var(--orange) 0% 70%, #E7E1D5 70% 100%);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    position: relative;
+  }
+  .score-circle::before{ content:''; position:absolute; width:42px; height:42px; border-radius:50%; background: var(--panel); }
+  .score-circle span{ position:relative; font-family: var(--mono); font-weight:600; font-size:0.85rem; }
+  .score-text strong{ display:block; font-size: 0.92rem; }
+  .score-text small{ color: var(--ink-soft); font-size: 0.8rem; }
+
+  .cat-item{ margin-bottom: 12px; }
+  .cat-item:last-child{ margin-bottom:0; }
+  .cat-label{ display:flex; justify-content:space-between; font-size:0.78rem; color: var(--ink-soft); margin-bottom:5px; }
+  .cat-track{ height:5px; background: var(--panel); border: 1px solid var(--line); border-radius:99px; overflow:hidden; }
+  .cat-fill{ height:100%; background: var(--orange); }
+
+  /* Sections */
+  section{ padding: 52px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type{ border-bottom: none; }
+  h2{ font-size: 1.35rem; font-weight: 800; margin-bottom: 14px; }
+  .section-sub{ color: var(--ink-soft); max-width: 62ch; margin-bottom: 30px; }
+
+  /* Steps (how to use) */
+  .steps{ list-style:none; counter-reset: s; }
+  .steps li{
+    counter-increment: s;
+    display:grid;
+    grid-template-columns: 34px 1fr;
+    gap: 16px;
+    padding: 18px 0;
+    border-top: 1px solid var(--line);
+  }
+  .steps li:first-child{ border-top:none; padding-top:0; }
+  .steps li::before{
+    content: counter(s);
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--orange-dark);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .steps h3{ font-size: 0.98rem; margin-bottom: 4px; }
+  .steps p{ color: var(--ink-soft); font-size: 0.94rem; max-width: 58ch; }
+
+  /* Categories list */
+  .cat-grid{
+    display:grid; grid-template-columns: 1fr 1fr; gap: 10px 24px;
+  }
+  @media (max-width:560px){ .cat-grid{ grid-template-columns: 1fr; } }
+  .cat-grid div{
+    display:flex; align-items:baseline; gap:8px;
+    padding: 9px 0; border-bottom: 1px dotted var(--line);
+    font-size: 0.92rem;
+  }
+  .cat-grid .bullet{ color: var(--orange); font-weight:700; }
+
+  /* Video */
+  .video-frame{
+    position:relative; border-radius:8px; overflow:hidden;
+    border: 1px solid var(--line); aspect-ratio:16/9; background:#000;
+  }
+  .video-frame iframe{ width:100%; height:100%; border:0; }
+
+  /* Results, plain */
+  .results-list{ list-style:none; }
+  .results-list li{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding: 14px 0; border-top: 1px solid var(--line); font-size: 0.98rem;
+  }
+  .results-list li:first-child{ border-top:none; }
+  .results-list .val{ font-family: var(--mono); font-weight:600; color: var(--orange-dark); }
+
+  /* FAQ */
+  details{
+    border-top: 1px solid var(--line);
+    padding: 16px 0;
+  }
+  details:last-child{ border-bottom: 1px solid var(--line); }
+  summary{
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.98rem;
+    list-style: none;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  summary::-webkit-details-marker{ display:none; }
+  summary::after{ content:'+'; font-weight:400; color: var(--ink-soft); font-size: 1.2rem; }
+  details[open] summary::after{ content:'–'; }
+  details p{ color: var(--ink-soft); margin-top: 10px; font-size: 0.94rem; max-width: 60ch; }
+
+  /* Docs */
+  .doc-list{ list-style:none; }
+  .doc-list li{ border-top: 1px solid var(--line); }
+  .doc-list li:first-child{ border-top:none; }
+  .doc-list a{
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 15px 2px; text-decoration:none; color: var(--ink); font-weight:600; font-size:0.96rem;
+  }
+  .doc-list a:hover, .doc-list a:focus-visible{ color: var(--orange-dark); }
+  .doc-list .arrow{ color: var(--ink-soft); }
+
+  footer{ padding: 30px 0; text-align:center; color: var(--ink-soft); font-size: 0.85rem; }
+  footer a{ font-weight:600; text-decoration:none; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a href="#top" class="brand">PrivacyCheck</a>
+    <ul class="navlinks">
+      <li><a href="#how">How to use it</a></li>
+      <li><a href="#demo">Watch it work</a></li>
+      <li><a href="#results">Results</a></li>
+      <li><a href="#faq">FAQ</a></li>
+      <li><a href="#docs">Docs</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="intro" id="top">
+  <div class="wrap">
+    <div class="kicker">Chrome extension · UT Austin Center for Identity</div>
+    <h1>Know what you're agreeing to, without reading the fine print.</h1>
+    <p>PrivacyCheck reads a website's privacy policy for you and gives it a plain score, so you can tell in seconds whether it's worth your trust — or a quick "no thanks."</p>
+    <div class="btn-row">
+      <a href="#demo" class="btn btn-solid">Watch it work</a>
+      <a href="#how" class="btn btn-line">How to use it</a>
+    </div>
+  </div>
+</header>
+
+<section id="what-it-looks-like">
+  <div class="wrap">
+    <h2>What you'll actually see</h2>
+    <p class="section-sub">Click the extension icon on any site with a privacy policy, and this is the popup that shows up.</p>
+    <div class="browser-shot">
+      <div class="browser-bar">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url">example-shopping-site.com/privacy</div>
+      </div>
+      <div class="browser-body">
+        <div class="ext-header"><span class="sq"></span>PrivacyCheck</div>
+        <div class="score-row">
+          <div class="score-circle"><span>70%</span></div>
+          <div class="score-text">
+            <strong>Your privacy score</strong>
+            <small>Weighted by what you told it matters</small>
+          </div>
+        </div>
+        <div class="cat-item">
+          <div class="cat-label"><span>Cookie tracking</span></div>
+          <div class="cat-track"><div class="cat-fill" style="width:72%"></div></div>
+        </div>
+        <div class="cat-item">
+          <div class="cat-label"><span>Health information</span></div>
+          <div class="cat-track"><div class="cat-fill" style="width:40%"></div></div>
+        </div>
+        <div class="cat-item">
+          <div class="cat-label"><span>Third-party sharing</span></div>
+          <div class="cat-track"><div class="cat-fill" style="width:85%"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2>How to use it</h2>
+    <p class="section-sub">No account, no setup beyond installing the extension.</p>
+    <ol class="steps">
+      <li>
+        <div>
+          <h3>Open the extension on any site</h3>
+          <p>Click the PrivacyCheck icon while you're on a page with a privacy policy. It reads the policy automatically — you don't need to find or paste anything.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Check your score</h3>
+          <p>You'll see one overall score based on real privacy regulations (GDPR), telling you roughly how protective — or not — the policy actually is.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Tell it what you care about</h3>
+          <p>Drag the sliders for the things that matter most to you — cookie tracking, health data, location, third-party sharing, and more — and the score updates to match your priorities.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>See how hard it is to read</h3>
+          <p>A separate readability score tells you the reading level of the policy itself, so you know if it was written to inform you or to lose you.</p>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section id="categories">
+  <div class="wrap">
+    <h2>What it checks for</h2>
+    <p class="section-sub">Ten categories you can weigh however matters to you.</p>
+    <div class="cat-grid">
+      <div><span class="bullet">–</span> Cookie tracking</div>
+      <div><span class="bullet">–</span> Health information</div>
+      <div><span class="bullet">–</span> Geolocation data</div>
+      <div><span class="bullet">–</span> Third-party sharing</div>
+      <div><span class="bullet">–</span> Biometric data</div>
+      <div><span class="bullet">–</span> Data retention</div>
+      <div><span class="bullet">–</span> Children's data</div>
+      <div><span class="bullet">–</span> Right to deletion</div>
+      <div><span class="bullet">–</span> Data sold to advertisers</div>
+      <div><span class="bullet">–</span> Policy transparency</div>
+    </div>
+  </div>
+</section>
+
+<section id="demo">
+  <div class="wrap">
+    <h2>Watch it work</h2>
+    <p class="section-sub">A two-minute walkthrough on a real site.</p>
+    <div class="video-frame">
+      <iframe src="https://www.youtube.com/embed/6ho5uMUbCSk" title="PrivacyCheck demo video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+    </div>
+  </div>
+</section>
+
+<section id="results">
+  <div class="wrap">
+    <h2>Is it actually accurate?</h2>
+    <p class="section-sub">Tested against privacy policies that were scored by hand as a baseline.</p>
+    <ul class="results-list">
+      <li><span>Accuracy vs. human-scored policies</span><span class="val">70.3%</span></li>
+      <li><span>Improvement over the previous model</span><span class="val">+10%</span></li>
+      <li><span>Previous model's accuracy (before this version)</span><span class="val">60%</span></li>
+    </ul>
+    <p class="section-sub" style="margin-top:22px; margin-bottom:0;">The previous version used a classical machine learning model (LightGBM), which struggled with nuance and context in longer policies. Swapping in an LLM for scoring was what closed most of that gap — and accuracy should keep improving as the underlying model does.</p>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Questions people ask</h2>
+    <details>
+      <summary>Does it read the whole policy, or just skim it?</summary>
+      <p>It reads the full text of the policy pulled from the page, then scores it against a set of GDPR-based questions — it's not just keyword matching.</p>
+    </details>
+    <details>
+      <summary>Can I trust the score completely?</summary>
+      <p>Treat it as a strong starting point, not a legal verdict. It's currently about 70% aligned with how a human reviewer would score the same policy, and that accuracy is expected to keep improving.</p>
+    </details>
+    <details>
+      <summary>What if I only care about certain things, like location tracking?</summary>
+      <p>That's what the category sliders are for. Weight the categories that matter to you, and the overall score reflects your priorities instead of a one-size-fits-all number.</p>
+    </details>
+    <details>
+      <summary>What's the "readability" number for?</summary>
+      <p>It's a separate reading-level score (based on two standard readability formulas) that tells you how hard the policy itself is to understand — a policy can score well on privacy and still be a slog to read.</p>
+    </details>
+  </div>
+</section>
+
+<section id="docs">
+  <div class="wrap">
+    <h2>Read more</h2>
+    <p class="section-sub">The full project write-up and technical details, if you want them.</p>
+    <ul class="doc-list">
+      <li><a href="#" target="_blank" rel="noopener">One-pager (PDF) <span class="arrow">→</span></a></li>
+      <li><a href="#" target="_blank" rel="noopener">Technical documentation <span class="arrow">→</span></a></li>
+      <li><a href="https://youtu.be/6ho5uMUbCSk" target="_blank" rel="noopener">Demo video <span class="arrow">→</span></a></li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>PrivacyCheck — built at the <a href="https://identity.utexas.edu/" target="_blank" rel="noopener">UT Austin Center for Identity</a></p>
+  </div>
+</footer>
+
+</body>
+</html>
